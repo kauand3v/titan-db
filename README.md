@@ -1,10 +1,7 @@
-Aqui estão os dois arquivos `README.md` completos, estruturados com padrão de Engenharia Core para você copiar, colar e impressionar qualquer recrutador ou tech lead.
 
----
+# 🇵🇹 Versão em Português 
 
-# 🇵🇹 Versão em Português (README.pt.md)
 
-```markdown
 # TitanDB 🚀
 
 **TitanDB** é um banco de dados distribuído chave-valor (Key-Value Store) de alta performance, construído inteiramente do zero. O projeto foi desenhado para operar em clusters, utilizando um protocolo RPC proprietário focado em baixa latência e o algoritmo de consenso Raft para garantir a consistência e tolerância a falhas dos dados.
@@ -122,13 +119,13 @@ Para provar que o TitanDB é um sistema de infraestrutura core real, execute os 
 
 Se você simular o isolamento de um nó impedindo a comunicação dele com os outros, o cluster remanescente continuará operando normalmente (pois mantém a maioria), enquanto o nó isolado recusará escritas para evitar a corrupção do estado do sistema, respeitando estritamente o **Teorema CAP** (Privilegiando Consistência sobre Disponibilidade).
 
-```
+
 
 ---
 
-# 🇺🇸 Versão em Inglês (README.md)
+# 🇺🇸 Versão em Inglês 
 
-```markdown
+
 # TitanDB 🚀
 
 **TitanDB** is a high-performance distributed key-value store built entirely from scratch. The system is engineered to operate across multiple cluster nodes, leveraging a proprietary low-latency RPC framework and the Raft consensus algorithm to guarantee strong data consistency and high availability.
@@ -140,6 +137,7 @@ This project bypasses traditional HTTP frameworks and off-the-shelf messaging so
 ## 🏗️ System Architecture
 
 TitanDB is decoupled into three strict layers enforced by rigid interfaces:
+
 
 ```text
        +------------------+
