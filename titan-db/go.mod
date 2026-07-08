@@ -1,3 +1,3 @@
-module titan-db
+module github.com/kauandias747474-hue/titandb
 
-go 1.26.1
+go 1.22 // ou sua versão do Go

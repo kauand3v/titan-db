@@ -1,0 +1,45 @@
+# Binários compilados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go
+titan-db/server
+titan-db/client
+titan-db/titan
+titan-db/cmd/server/server
+titan-db/cmd/client/client
+
+# Rust
+titan_rust/target/
+
+# C++ (se existir)
+*.o
+*.obj
+*.a
+*.lib
+titan-db-cpp/server
+titan-db-cpp/client
+
+# Ruby
+ruby/*.gem
+ruby/.bundle/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

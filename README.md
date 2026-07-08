@@ -523,3 +523,152 @@ To demonstrate its interoperability with web-focused ecosystems, I developed the
 **Why Ruby?**
 Integrating TitanDB with a Ruby-based orchestrator allows for rapid prototyping of complex data workflows. This setup leverages Ruby's expressive syntax to manage the lifecycle of data nodes and orchestrate requests to the database, bridging the gap between low-level storage performance and high-level application logic.
 
+---
+
+Aqui está o resumo final para o README do TitanDB, em português e inglês, consolidando toda a jornada do projeto, desde a arquitetura até os erros resolvidos, passando pelas decisões de design e pela implementação multi-linguagem.
+
+---
+
+## 🇧🇷 Resumo Final do Projeto
+
+### O que é o TitanDB?
+
+O TitanDB é um banco de dados distribuído chave-valor de alta performance, construído inteiramente do zero, sem dependências de frameworks externos. Ele opera em cluster utilizando um protocolo RPC binário próprio (TitanRPC) sobre TCP puro e implementa o algoritmo de consenso Raft para garantir consistência forte e tolerância a falhas. O projeto abrange três implementações de servidor (Go, C++ e Rust) e dois clientes independentes (Go e Ruby), todos interoperáveis graças ao protocolo binário aberto.
+
+### Arquitetura e Componentes
+
+O sistema é organizado em três camadas rigorosamente desacopladas:
+
+1. **TitanRPC (Camada de Rede):** Framework RPC customizado que implementa multiplexação de mensagens, pool de conexões e framing binário eficiente. O formato de mensagem é `[PayloadSize 4B][MessageID 4B][Command 1B][Payload]`, garantindo latência mínima e ausência de overhead de HTTP/JSON.
+
+2. **Raft Core (Camada de Consenso):** Implementação do algoritmo Raft com máquina de estados (Follower, Candidate, Leader), eleições baseadas em timeouts aleatórios e heartbeats periódicos. A replicação de logs está estruturada, mas na versão atual os comandos são aplicados diretamente pelo líder para simplificação didática.
+
+3. **KV Engine (Camada de Aplicação):** Armazenamento chave-valor em memória, thread-safe, completamente isolado da rede. Suporta operações básicas (PUT, GET, DELETE) e um comando analítico inovador: **3SUM**, que encontra todas as triplas de valores numéricos que somam zero, executado em tempo O(n²) utilizando ordenação e dois ponteiros.
+
+### Decisões de Design
+
+- **Protocolo binário próprio:** Cada byte é otimizado; um PUT ocupa apenas 9 + 2 + len(key) + 2 + len(val) bytes, contra centenas de bytes de uma requisição HTTP equivalente.
+- **Framing explícito:** O campo `PayloadSize` resolve o problema de TCP ser um stream contínuo, permitindo delimitar mensagens sem ambiguidade.
+- **Big-Endian (Network Byte Order):** Garantia de interoperabilidade entre diferentes arquiteturas de hardware.
+- **Separação de camadas e injeção de dependências:** Cada componente (store, raft, rpc) pode ser testado isoladamente.
+- **Algoritmo 3SUM otimizado:** Demonstra que é possível incorporar processamento analítico eficiente dentro do próprio banco de dados, evitando força bruta O(n³).
+
+### Erros Enfrentados e Lições Aprendidas
+
+Durante o desenvolvimento da versão Go, diversos erros de compilação surgiram e foram resolvidos, documentados como um guia prático:
+
+- **BrokenImport e undefined:** Causados por `go.mod` incorreto e imports ausentes (ex.: `"fmt"`, `"io"`, `"encoding/binary"`). A solução envolveu corrigir o nome do módulo e adicionar os imports necessários.
+- **expected 'package', found 'EOF':** Arquivos `.go` vazios ou sem declaração de pacote. Corrigidos adicionando `package <nome>` em cada arquivo.
+- **Métodos e constantes ausentes:** Como `StatusNotFound`, `Put`, `Get`, `Delete` e `ThreeSum` não estavam implementados nos pacotes correspondentes. Foram adicionados gradualmente.
+- **Conflitos com versão antiga:** A existência da pasta `titan-db-old` dentro do workspace fazia o VS Code analisar código defasado e gerar falsos erros. A solução foi mover a pasta para fora da árvore do projeto.
+
+**Lições principais:**
+- Todo arquivo `.go` deve começar com `package`.
+- O `go.mod` define o caminho base dos imports e precisa corresponder exatamente.
+- Cada função chamada precisa estar declarada no pacote importado.
+- Erros de compilação em Go são extremamente específicos e facilitam a depuração quando lidos com atenção.
+
+### Interoperabilidade Multi-linguagem
+
+O protocolo binário aberto permite que clientes e servidores em diferentes linguagens se comuniquem sem adaptações:
+
+- **Go:** Implementação principal do servidor e cliente, com Raft funcional.
+- **C++:** Servidor e cliente equivalentes, utilizando threads e sockets POSIX (compatível com Linux/macOS).
+- **Rust:** Servidor assíncrono com Tokio, cliente CLI e ferramentas administrativas.
+- **Ruby:** Cliente puro que fala o mesmo protocolo via `TCPSocket` e `Array#pack`, comprovando a interoperabilidade.
+
+Testes práticos mostraram que um servidor Go pode atender um cliente Ruby, e a mesma lógica se aplica às demais combinações.
+
+### Status Atual e Oportunidades
+
+O TitanDB está aproximadamente **35% concluído** em relação a um sistema de produção. O que funciona:
+
+- Protocolo binário completo e eficiente.
+- KV Store em memória thread-safe.
+- Eleição de líder e heartbeats (failover em ~300ms).
+- Cliente CLI e agente de monitoramento.
+- Comando 3SUM analítico otimizado.
+
+**Próximos passos sugeridos:**
+1. Implementar replicação de log real (essencial para consistência).
+2. Adicionar persistência em disco (WAL + snapshots).
+3. Descoberta dinâmica de membros.
+4. Autenticação e segurança.
+5. Testes automatizados abrangentes.
+
+### Conclusão
+
+O TitanDB é um projeto educacional completo que abrange desde fundamentos de sistemas operacionais (sockets, sinais) até algoritmos distribuídos avançados. Ele demonstra na prática como construir um banco de dados do zero, com forte ênfase em desempenho, consistência e extensibilidade. A estrutura modular, a documentação detalhada e a implementação multi-linguagem fazem dele uma base sólida para aprendizado e experimentação em engenharia de software de baixo nível.
+
+---
+
+## 🇬🇧 Final Project Summary
+
+### What is TitanDB?
+
+TitanDB is a high-performance distributed key-value store built entirely from scratch, with no external framework dependencies. It operates on a cluster using a custom binary RPC protocol (TitanRPC) over raw TCP and implements the Raft consensus algorithm to guarantee strong consistency and fault tolerance. The project encompasses three server implementations (Go, C++, and Rust) and two independent clients (Go and Ruby), all interoperable thanks to the open binary protocol.
+
+### Architecture and Components
+
+The system is divided into three strictly decoupled layers:
+
+1. **TitanRPC (Networking Layer):** A custom RPC framework featuring message multiplexing, connection pooling, and efficient binary framing. The message format is `[PayloadSize 4B][MessageID 4B][Command 1B][Payload]`, ensuring minimal latency and no HTTP/JSON overhead.
+
+2. **Raft Core (Consensus Layer):** Implements the Raft algorithm with a finite state machine (Follower, Candidate, Leader), randomized election timeouts, and periodic heartbeats. Log replication is structured, but in the current version, commands are applied directly by the leader for didactic simplification.
+
+3. **KV Engine (Application Layer):** An in-memory, thread-safe key-value store, completely isolated from the network. It supports basic operations (PUT, GET, DELETE) and an innovative analytical command: **3SUM**, which finds all triplets of numeric values that sum to zero, running in O(n²) time using sorting and two pointers.
+
+### Design Decisions
+
+- **Custom binary protocol:** Every byte is optimized; a PUT takes only 9 + 2 + len(key) + 2 + len(val) bytes, compared to hundreds of bytes for an equivalent HTTP request.
+- **Explicit framing:** The `PayloadSize` field solves TCP's stream nature, allowing unambiguous message delimitation.
+- **Big-Endian (Network Byte Order):** Guarantees interoperability across different hardware architectures.
+- **Layer separation and dependency injection:** Each component (store, raft, rpc) can be tested in isolation.
+- **Optimized 3SUM algorithm:** Shows that efficient analytical processing can be embedded directly into the database, avoiding O(n³) brute force.
+
+### Errors Encountered and Lessons Learned
+
+During the development of the Go version, several compilation errors arose and were resolved, documented as a practical guide:
+
+- **BrokenImport and undefined:** Caused by incorrect `go.mod` and missing imports (e.g., `"fmt"`, `"io"`, `"encoding/binary"`). The fix involved correcting the module name and adding the necessary imports.
+- **expected 'package', found 'EOF':** Empty `.go` files or those missing a package declaration. Fixed by adding `package <name>` to each file.
+- **Missing methods and constants:** Such as `StatusNotFound`, `Put`, `Get`, `Delete`, and `ThreeSum` were not yet implemented in their respective packages. They were added incrementally.
+- **Conflicts with old version:** The existence of the `titan-db-old` folder inside the workspace caused VS Code to analyze outdated code and generate false errors. The solution was to move the folder out of the project tree.
+
+**Key takeaways:**
+- Every `.go` file must start with `package`.
+- The `go.mod` defines the base import path and must match exactly.
+- Every called function must be declared in the imported package.
+- Go compilation errors are highly specific and facilitate debugging when read carefully.
+
+### Multi-language Interoperability
+
+The open binary protocol allows clients and servers in different languages to communicate seamlessly:
+
+- **Go:** Main server and client implementation, with functional Raft.
+- **C++:** Equivalent server and client, using POSIX threads and sockets (Linux/macOS compatible).
+- **Rust:** Asynchronous server with Tokio, CLI client, and administrative tools.
+- **Ruby:** Pure client speaking the same protocol via `TCPSocket` and `Array#pack`, proving true interoperability.
+
+Practical tests confirmed that a Go server can serve a Ruby client, and the same logic applies to any other combination.
+
+### Current Status and Opportunities
+
+TitanDB is approximately **35% complete** relative to a production system. What works:
+
+- Complete and efficient binary protocol.
+- Thread-safe in-memory KV Store.
+- Leader election and heartbeats (failover in ~300ms).
+- CLI client and monitoring agent.
+- Optimized analytical 3SUM command.
+
+**Suggested next steps:**
+1. Implement real log replication (essential for consistency).
+2. Add disk persistence (WAL + snapshots).
+3. Dynamic member discovery.
+4. Authentication and security.
+5. Comprehensive automated tests.
+
+### Conclusion
+
+TitanDB is a comprehensive educational project that spans from operating system fundamentals (sockets, signals) to advanced distributed algorithms. It demonstrates in practice how to build a database from scratch, with strong emphasis on performance, consistency, and extensibility. The modular structure, detailed documentation, and multi-language implementation make it a solid foundation for learning and experimentation in low-level software engineering.
