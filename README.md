@@ -3,234 +3,204 @@ TitanDB
 <p align="center">
   <strong>An experimental key-value storage system built with Go.</strong>
   <br>
-  Exploring TCP networking, binary protocols, concurrency, storage engineering, observability, and distributed consensus.
+  Exploring networking, binary protocols, concurrency, storage engineering, observability, and distributed consensus.
 </p><p align="center">
   <img src="https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.22+">
   <img src="https://img.shields.io/badge/Status-Experimental-orange?style=for-the-badge" alt="Experimental">
   <img src="https://img.shields.io/badge/Storage-Key--Value-blue?style=for-the-badge" alt="Key-Value Storage">
-  <img src="https://img.shields.io/badge/Platform-Cross--Platform-lightgrey?style=for-the-badge" alt="Cross-platform">
 </p><p align="center">
   <img src="https://img.shields.io/badge/Networking-TCP-informational?style=flat-square" alt="TCP">
   <img src="https://img.shields.io/badge/Protocol-Binary-blueviolet?style=flat-square" alt="Binary Protocol">
   <img src="https://img.shields.io/badge/Concurrency-RWMutex-success?style=flat-square" alt="Concurrency">
   <img src="https://img.shields.io/badge/Consensus-Raft-orange?style=flat-square" alt="Raft">
-  <img src="https://img.shields.io/badge/Observability-Planned-yellow?style=flat-square" alt="Observability planned">
-</p>«[!WARNING] Experimental project — not production-ready. TitanDB currently provides a TCP-based key-value request path backed by an in-memory map. The Raft package remains a prototype: replicated log entries, majority-based commits, durable storage, and end-to-end multi-node consensus are not implemented. Basic observability is a target of the single-node MVP, not an implemented feature. Do not use TitanDB to store production or valuable data.»
+  <img src="https://img.shields.io/badge/Observability-MVP%20Planned-yellow?style=flat-square" alt="Observability planned">
+</p>«[!WARNING]
+TitanDB is experimental and not production-ready. The current implementation uses a TCP-based request path backed by an in-memory key-value store. Raft replication, majority-based commits, durable storage, and end-to-end multi-node consensus are not implemented. Observability is planned for the single-node MVP. Do not use TitanDB to store production or valuable data.»
+
+---
+
+Contents
+
+- "Overview" (#overview)
+- "Features" (#features)
+- "Project status" (#project-status)
+- "Architecture" (#architecture)
+- "Quick start" (#quick-start)
+- "Binary protocol" (#binary-protocol)
+- "Observability" (#observability)
+- "Repository structure" (#repository-structure)
+- "Development roadmap" (#development-roadmap)
+- "Testing" (#testing)
+- "Limitations" (#limitations)
+- "Non-goals" (#non-goals)
+- "Contributing" (#contributing)
+- "License" (#license)
+- "Author" (#author)
+
+---
 
 Overview
 
-TitanDB is a learning-oriented systems engineering project focused on understanding how a storage service can be built from lower-level primitives instead of relying on an HTTP framework or a managed database.
+TitanDB is a learning-oriented systems engineering project focused on building a key-value storage service from lower-level primitives.
 
-The project explores the engineering foundations of a key-value storage system, including network communication, binary protocol design, concurrent access, storage management, observability, and distributed consensus.
+Instead of relying on an HTTP framework or a managed database, the project explores the internal components behind a storage system:
 
-The current Go implementation includes:
+- TCP networking and connection handling.
+- Custom binary protocol design.
+- Concurrent data access.
+- Storage management.
+- Operational observability.
+- Distributed consensus with Raft.
 
-- A TCP server and a custom binary request protocol.
-- A command-line client supporting "PUT", "GET", "DELETE", and an experimental "3SUM" operation.
-- An in-memory key-value store protected by "sync.RWMutex".
-- An early Raft implementation scaffold containing node roles, election timers, vote-request handling, and heartbeat-related code.
+The project is being developed incrementally, with correctness, testing, and architectural clarity taking priority over premature optimization.
 
-The planned single-node MVP will extend the current implementation with basic observability, structured logging, health checks, request metrics, storage statistics, and automated testing.
+Features
 
-The project is being developed incrementally. Its current state should be understood as an experimental prototype, not as a complete distributed database.
+Currently implemented
+
+- TCP server prototype.
+- Custom binary request framing.
+- CLI client for interacting with the server.
+- "PUT", "GET", and "DELETE" operations.
+- Thread-safe in-memory key-value storage using "sync.RWMutex".
+- Experimental "3SUM" operation.
+- Initial Raft node and election-related code.
+
+Planned for the single-node MVP
+
+- Structured operational logging.
+- Server health checks.
+- Request and operation metrics.
+- Error tracking and request latency.
+- Active connection monitoring.
+- Storage statistics.
+- Automated unit and integration tests.
+
+Planned for future development
+
+- Persistent storage and write-ahead logging.
+- Raft log replication.
+- Majority-based commit.
+- Multi-node consensus.
+- Crash recovery.
+- Cluster-level observability.
 
 Project status
 
-Component| Current status
-TCP server| Implemented prototype
-Binary request framing| Implemented prototype
-CLI client| Present
-"PUT", "GET", "DELETE"| Operate against the local in-memory store
-Thread-safe in-memory map| Implemented with "sync.RWMutex"
-"3SUM" command| Experimental demo operation
-Raft node roles and election scaffold| Work in progress; not validated end to end
-Basic structured logging| Existing logging utilities; coverage to be validated
-Health checks| Planned for the single-node MVP
-Request metrics| Planned for the single-node MVP
-Storage statistics| Planned for the single-node MVP
-Observability endpoints| Planned for the single-node MVP
-Raft "AppendEntries" log replication| Not implemented
-Majority-based commit| Not implemented
-Write-ahead log and snapshots| Not implemented
-Crash recovery and durable storage| Not implemented
-Production security and operational hardening| Not implemented
+The following table distinguishes the current implementation from planned capabilities.
 
-The project does not currently provide replicated or durable writes. A successful write is stored only in the process-local map and is lost when that process exits.
+Component| Status
+TCP server| <img src="https://img.shields.io/badge/Prototype-Implemented-success?style=flat-square">
+Binary request framing| <img src="https://img.shields.io/badge/Prototype-Implemented-success?style=flat-square">
+CLI client| Present
+"PUT", "GET", "DELETE"| Local in-memory operations
+Thread-safe storage| Implemented
+"3SUM"| Experimental
+Raft election scaffold| In progress
+Structured logging| Existing utilities; coverage to be validated
+Health checks| Planned
+Request metrics| Planned
+Storage statistics| Planned
+Monitoring endpoints| Planned
+Raft log replication| Not implemented
+Majority-based commit| Not implemented
+WAL and snapshots| Not implemented
+Durable storage and recovery| Not implemented
+
+Current data behavior: successful writes exist only in the local process memory. They are lost when the server exits.
+
+---
 
 Architecture
 
-Current request path
+Current implementation
 
-┌──────────────────┐
-│   CLI Client     │
-└────────┬─────────┘
-         │ TCP
-         ▼
-┌──────────────────┐
-│ TitanRPC Server  │
-│ binary framing   │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────────────┐
-│ In-memory Key-Value Store│
-│ map + sync.RWMutex       │
-└──────────────────────────┘
+The current request path is intentionally simple:
 
-The repository also contains an experimental "internal/raft" package. It is not yet connected to the normal application request path as a consensus layer. Incoming application writes are currently applied directly to the local store rather than being appended to a replicated Raft log and committed by a cluster majority.
+       CLI CLIENT
+           │
+           │ TCP
+           ▼
+     TITAN RPC SERVER
+      Binary Framing
+           │
+           ▼
+    IN-MEMORY STORAGE
+      map + RWMutex
 
-Planned MVP architecture
+The repository also contains an experimental "internal/raft" package. It is not currently integrated into the application write path.
 
-The single-node MVP will introduce an observability layer alongside the existing request path. A separate monitoring interface will expose local server health and operational metrics without changing the application's binary TCP protocol.
+Application writes are applied directly to the local store instead of being replicated and committed through a Raft cluster.
 
-┌──────────────────┐
-│   CLI Client     │
-└────────┬─────────┘
-         │ TCP
-         ▼
-┌──────────────────┐
-│ TitanRPC Server  │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────────────┐
-│ In-memory Key-Value Store│
-└──────────────────────────┘
-         │
-         ▼
-┌──────────────────────────┐
-│  Observability Collector │
-└────────┬─────────────────┘
-         │
-         ▼
-┌──────────────────────────┐
-│   Monitoring Interface   │
-│                          │
-│  Health Checks           │
-│  Request Metrics         │
-│  Storage Statistics      │
-│  Operational Logs        │
-└──────────────────────────┘
+Planned single-node MVP
 
-The observability layer is intended to collect information from the server and storage components. Its monitoring interface will use a separate HTTP listener, keeping monitoring traffic independent from the application's binary TCP protocol.
+The next architectural milestone introduces an observability layer alongside the existing request path.
 
-Main packages
+       CLI CLIENT
+           │
+           │ TCP
+           ▼
+     TITAN RPC SERVER
+           │
+           ▼
+    IN-MEMORY STORAGE
+           │
+           ▼
+  OBSERVABILITY COLLECTOR
+           │
+           ▼
+   MONITORING INTERFACE
+      ├── Health Checks
+      ├── Request Metrics
+      ├── Storage Statistics
+      └── Operational Logs
+
+The monitoring interface is planned to use a separate HTTP listener. This keeps monitoring traffic independent from the application's binary TCP protocol.
+
+Package responsibilities
 
 Package| Responsibility
-"cmd/server"| Starts a TitanDB server node and its supporting components.
-"cmd/client"| Sends key-value commands to a server over TCP.
-"internal/rpc"| Encodes and decodes application requests and handles TCP connections.
-"internal/kv"| Provides the in-memory key-value store.
-"internal/raft"| Contains the experimental Raft node and election/heartbeat code.
-"internal/observability"| Planned health checks, metrics collection, and operational statistics.
+"cmd/server"| Starts the TitanDB server and supporting components.
+"cmd/client"| Sends key-value commands over TCP.
+"internal/rpc"| Handles application request encoding, decoding, and TCP connections.
+"internal/kv"| Implements the in-memory key-value store.
+"internal/raft"| Contains experimental Raft election and heartbeat logic.
+"internal/observability"| Planned health checks, metrics, and operational statistics.
 "pkg/logger"| Provides project logging utilities.
 
-Binary protocol
+---
 
-The application request header currently uses a fixed 9-byte layout:
+Quick start
 
-Field| Size| Description
-Payload length| 4 bytes| Length of the request payload, big-endian.
-Message ID| 4 bytes| Request identifier.
-Command| 1 byte| Operation code.
-Payload| Variable| Command-specific data.
+The following instructions run the current single-node prototype.
 
-Current command codes:
-
-Code| Command| Payload
-"1"| "PUT"| Key length, key, value length, value.
-"2"| "GET"| Key length and key.
-"3"| "DELETE"| Key length and key.
-"4"| "3SUM"| No command-specific payload.
-
-All multi-byte integer fields are encoded in big-endian byte order.
-
-The protocol is a work in progress and should not yet be treated as a stable public wire-protocol specification.
-
-Future protocol improvements include:
-
-- Explicit protocol versioning.
-- Maximum payload size validation.
-- Request and response definitions.
-- Error codes and malformed-message handling.
-- Clear message ID correlation semantics.
-- Automated encoding and decoding tests.
-
-Observability
-
-Observability is a planned component of the single-node MVP.
-
-The objective is to make TitanDB easier to inspect, debug, and understand while it is running, providing visibility into request handling, storage operations, and server health.
-
-The initial implementation will prioritize a small set of operational signals rather than a complex monitoring stack.
-
-Planned MVP capabilities
-
-Capability| Description
-Health checks| Report whether the local server is operational.
-Request counters| Track the total number of processed requests.
-Operation metrics| Track "PUT", "GET", and "DELETE" operations.
-Error counters| Track failed and invalid requests.
-Request latency| Measure request processing time.
-Active connections| Track currently active TCP connections.
-Storage statistics| Report key count and estimated memory usage.
-Structured logging| Produce consistent operational logs.
-Metrics endpoint| Expose metrics through a separate monitoring interface.
-
-Planned monitoring endpoints
-
-The MVP is expected to expose a separate HTTP listener for monitoring:
-
-Endpoint| Purpose
-"GET /health"| Local server health information.
-"GET /metrics"| Operational metrics and storage statistics.
-
-These endpoints are planned and are not currently available.
-
-The health endpoint must distinguish between local server availability and distributed consensus health. Until Raft is fully integrated and validated, TitanDB must not report a functioning distributed cluster merely because its local TCP server is running.
-
-Future observability improvements
-
-After the MVP:
-
-- Prometheus-compatible metrics.
-- Raft leader and follower status.
-- Current Raft term.
-- Replication lag.
-- Pending log entries.
-- Cluster health information.
-- Dashboard for node and cluster inspection.
+They demonstrate the TCP request path and local in-memory operations, not persistence or distributed consensus.
 
 Requirements
 
 - Go 1.22 or later.
+- Git.
 - A local terminal.
 
-The current Go module is located in the "titan-db/" subdirectory of this repository.
-
-Quick start: single-node prototype
-
-The following commands exercise the current single-node TCP/RPC and in-memory key-value path. They do not demonstrate replicated writes or multi-node Raft consensus.
+The current Go module is located inside the repository's "titan-db/" directory.
 
 1. Clone the repository
 
 git clone https://github.com/kauand3v/titan-db.git
 cd titan-db/titan-db
 
-2. Start one server node
+2. Start the server
 
 go run ./cmd/server/main.go \
   --id=1 \
   --address=127.0.0.1:8001 \
   --cluster=1@127.0.0.1:8001
 
-Keep this terminal running.
+Keep the server running.
 
 3. Write a value
 
-Open a second terminal, enter the Go module directory, and run:
-
-cd titan-db/titan-db
+Open another terminal in the Go module directory:
 
 go run ./cmd/client/main.go \
   --server=127.0.0.1:8001 \
@@ -252,17 +222,102 @@ go run ./cmd/client/main.go \
   --cmd=DELETE \
   --key=greeting
 
-6. Run the experimental "3SUM" operation
+6. Run the experimental 3SUM operation
 
-The "3SUM" command reads values from the in-memory store, parses values that are integers, and searches for unique triplets whose sum is zero.
+The "3SUM" command reads integer values from the in-memory store and searches for unique triplets whose sum is zero.
 
 go run ./cmd/client/main.go \
   --server=127.0.0.1:8001 \
   --cmd=3SUM
 
-This command is an experiment and is not part of the core key-value storage interface.
+This is an experimental operation and is not part of the core key-value interface.
 
-Repository layout
+---
+
+Binary protocol
+
+TitanDB currently uses a custom binary application protocol.
+
+Request header
+
+The current request header has a fixed 9-byte layout:
+
+Field| Size| Description
+Payload length| 4 bytes| Payload length in big-endian order.
+Message ID| 4 bytes| Request identifier.
+Command| 1 byte| Operation code.
+Payload| Variable| Command-specific data.
+
+Command codes
+
+Code| Command| Payload
+"1"| "PUT"| Key length, key, value length, value.
+"2"| "GET"| Key length and key.
+"3"| "DELETE"| Key length and key.
+"4"| "3SUM"| No command-specific payload.
+
+All multi-byte integer fields use big-endian byte order.
+
+The protocol is still evolving and is not a stable public wire-protocol specification.
+
+Planned protocol improvements
+
+- Explicit protocol versioning.
+- Maximum payload size validation.
+- Defined request and response formats.
+- Error codes and malformed-message handling.
+- Clear message ID correlation semantics.
+- Automated encoding and decoding tests.
+
+---
+
+Observability
+
+Observability is a planned part of the single-node MVP.
+
+The goal is to make TitanDB easier to inspect, debug, and understand while running, providing visibility into server health, request processing, and storage behavior.
+
+MVP capabilities
+
+Capability| Description
+Health checks| Report whether the local server is operational.
+Request counters| Track the total number of processed requests.
+Operation metrics| Track "PUT", "GET", and "DELETE" operations.
+Error counters| Track failed and invalid requests.
+Request latency| Measure request processing time.
+Active connections| Track active TCP connections.
+Storage statistics| Report key count and estimated memory usage.
+Structured logging| Produce consistent operational logs.
+
+Monitoring endpoints
+
+The planned monitoring interface will expose a separate HTTP listener:
+
+Endpoint| Purpose
+"GET /health"| Local server health information.
+"GET /metrics"| Operational metrics and storage statistics.
+
+These endpoints are not currently implemented.
+
+Local server health must remain separate from distributed consensus health. A running TCP server does not mean that a healthy Raft cluster exists.
+
+Future observability
+
+After the MVP:
+
+- Prometheus-compatible metrics.
+- Raft leader and follower status.
+- Current Raft term.
+- Replication lag.
+- Pending log entries.
+- Cluster health information.
+- A dashboard for node and cluster inspection.
+
+---
+
+Repository structure
+
+Current repository layout:
 
 titan-db/
 ├── README.md
@@ -280,140 +335,153 @@ titan-db/
     │   └── logger/
     └── go.mod
 
-The layout is being simplified. The long-term goal is to move the Go module to the repository root and keep optional language clients under a clearly named "clients/" directory.
+The long-term structural goal is to move the Go module to the repository root and organize optional language clients under a dedicated "clients/" directory.
 
-Current limitations
-
-The following limitations are known from the current source tree:
-
-1. In-memory data only. The key-value store uses a Go map protected by a read/write mutex. Its "Close" method does not persist data.
-2. No durable log. There is no write-ahead log or snapshot-based recovery path.
-3. No replicated write path. The RPC server applies "PUT" and "DELETE" directly to its local store. The Raft "SubmitCommand" method is not used by that request handler.
-4. Raft transport is not integrated. The experimental Raft code uses a 5-byte message header, while the application RPC server decodes a 9-byte header. The server's accepted-connection handler does not dispatch connections to "HandleRaftConnection".
-5. AppendEntries is incomplete. The current handler does not validate or append log entries; it updates node state and sends a response.
-6. No production security. Authentication, authorization, transport encryption, resource limits, and operational hardening are not implemented.
-7. No stable compatibility contract. The binary protocol may change while the project evolves.
-8. Observability is not implemented yet. Health checks, metrics endpoints, and storage statistics remain planned MVP capabilities.
-
-Because of these limitations, the multi-node cluster and failover scenarios described in earlier documentation are not currently supported claims. They should only be documented as working after automated integration tests demonstrate them.
+---
 
 Development roadmap
 
-The roadmap prioritizes correctness, observability, and reproducibility before distributed features and performance optimization.
+The roadmap prioritizes correctness and a demonstrable single-node MVP before distributed consensus and performance optimization.
 
-Phase 1 — Core Foundation
+Phase 1 — Core foundation
 
-- [ ] Move the Go module to the repository root and update the module path to "github.com/kauand3v/titan-db".
-- [ ] Add unit tests for protocol encoding and decoding.
-- [ ] Add unit tests for key-value operations.
-- [ ] Add integration tests for the TCP server and CLI client.
+- [ ] Move the Go module to the repository root.
+- [ ] Update the module path to "github.com/kauand3v/titan-db".
+- [ ] Add protocol encoding and decoding unit tests.
+- [ ] Add key-value storage unit tests.
+- [ ] Add TCP server and CLI integration tests.
 - [ ] Improve connection handling and malformed-request validation.
-- [ ] Validate concurrent storage access with "go test -race ./...".
+- [ ] Validate concurrent access with "go test -race ./...".
 
-Phase 2 — Single-Node MVP and Observability
+Phase 2 — Single-node MVP and observability
 
-- [ ] Introduce an observability package.
+- [ ] Introduce the observability package.
 - [ ] Implement basic server health checks.
 - [ ] Add request counters and operation metrics.
-- [ ] Track request errors and processing latency.
+- [ ] Track errors and request latency.
 - [ ] Track active connections.
-- [ ] Expose basic storage statistics.
+- [ ] Expose storage statistics.
 - [ ] Improve structured logging.
-- [ ] Add a separate monitoring listener for health and metrics endpoints.
-- [ ] Add tests for metrics collection and health reporting.
-- [ ] Document the MVP architecture and reproducible demonstrations.
+- [ ] Add a separate monitoring listener.
+- [ ] Implement "/health" and "/metrics".
+- [ ] Add tests for health reporting and metrics collection.
+- [ ] Document reproducible MVP demonstrations.
 
-MVP milestone: a functional single-node TCP key-value service with automated tests, structured logging, basic health checks, and operational metrics.
+MVP milestone: a functional single-node TCP key-value service with automated tests, structured logging, health checks, and operational metrics.
 
 This milestone does not imply persistence, replication, or production readiness.
 
-Phase 3 — Transport and Protocol Reliability
+Phase 3 — Transport and protocol reliability
 
-- [ ] Define a single, versioned transport framing format for client and Raft traffic, or use separate listeners with explicit protocol handling.
+- [ ] Define a versioned transport framing format or separate application and Raft listeners.
 - [ ] Define maximum message and payload sizes.
 - [ ] Define response formats and error codes.
-- [ ] Integrate Raft message handling with the server's networking layer.
-- [ ] Add tests for incomplete messages, malformed frames, and connection failures.
+- [ ] Integrate Raft message handling with the networking layer.
+- [ ] Test incomplete messages, malformed frames, and connection failures.
 
-Phase 4 — Persistent Storage
+Phase 4 — Persistent storage
 
 - [ ] Design and implement a write-ahead log.
-- [ ] Persist the required Raft metadata and log entries.
+- [ ] Persist required Raft metadata and log entries.
 - [ ] Implement snapshots.
 - [ ] Implement log compaction.
-- [ ] Recover node state and committed data after process restarts.
+- [ ] Recover node state and committed data after restarts.
 - [ ] Test interrupted writes and recovery scenarios.
 
-Phase 5 — Raft Consensus
+Phase 5 — Raft consensus
 
-- [ ] Complete "RequestVote" handling, including term and log-freshness rules.
-- [ ] Implement "AppendEntries" with previous-log validation and actual log replication.
+- [ ] Complete "RequestVote" term and log-freshness rules.
+- [ ] Implement "AppendEntries" with previous-log validation and actual replication.
 - [ ] Implement majority-based commit.
 - [ ] Apply committed entries to the state machine.
-- [ ] Integrate the application write path with Raft.
+- [ ] Integrate application writes with Raft.
 - [ ] Validate leader and follower behavior.
 
-Phase 6 — Distributed Reliability
+Phase 6 — Distributed reliability
 
 - [ ] Add multi-node integration tests.
-- [ ] Verify leader election.
-- [ ] Verify log replication.
+- [ ] Verify leader election and log replication.
 - [ ] Test leader failure and reelection.
 - [ ] Test follower restarts and recovery.
 - [ ] Simulate network partitions.
-- [ ] Verify that acknowledged committed writes survive supported failure scenarios.
+- [ ] Verify committed writes survive supported failure scenarios.
 - [ ] Add cluster-level health and replication metrics.
 
-Phase 7 — Performance and Security
+Phase 7 — Performance and security
 
-- [ ] Add benchmarks for throughput, latency, and resource usage.
+- [ ] Add throughput, latency, and resource benchmarks.
 - [ ] Analyze storage and networking bottlenecks.
 - [ ] Add authentication and authorization.
 - [ ] Add transport security.
 - [ ] Implement configurable resource limits.
 - [ ] Improve operational hardening.
 
-Phase 8 — Developer Experience
+Phase 8 — Developer experience
 
 - [ ] Add Docker Compose examples.
 - [ ] Improve CLI diagnostics.
 - [ ] Publish architecture documentation.
 - [ ] Provide reproducible demonstrations.
 - [ ] Add CI checks and release workflows.
-- [ ] Evaluate a monitoring dashboard for cluster inspection.
+- [ ] Evaluate a monitoring dashboard.
 
-Testing and quality checks
+---
 
-Automated test coverage is a required part of the project's development.
+Testing
 
-Run these checks from the Go module directory:
+Automated testing is a required part of TitanDB's development.
+
+Run the following commands from the Go module directory:
 
 go test ./...
 go test -race ./...
 go vet ./...
 
-The project should also introduce automated CI checks to run these commands on relevant changes.
+CI checks should eventually run these commands on relevant changes.
 
-Do not interpret a successful build or a test run with no test cases as proof of Raft correctness. Distributed-systems claims require multi-process integration tests that verify replicated state, committed writes, recovery, and failure behavior.
+A successful build or a test run with no test cases is not proof of Raft correctness. Distributed-systems claims require multi-process integration tests covering replicated state, committed writes, recovery, and failure behavior.
 
-Non-goals for the current prototype
+---
 
-- Replacing Redis, etcd, FoundationDB, or another production database.
-- Providing production-grade durability or availability.
-- Offering a stable client SDK or wire protocol.
-- Claiming linearizability or fault tolerance before those properties are tested.
-- Competing with mature database systems before establishing a specific technical advantage.
+Limitations
+
+The current implementation has several important limitations:
+
+1. In-memory storage: data is held in a Go map protected by a read/write mutex. The store's "Close" method does not persist data.
+2. No durable log: there is no write-ahead log or snapshot-based recovery.
+3. No replicated write path: the RPC server applies "PUT" and "DELETE" directly to the local store. The Raft "SubmitCommand" method is not used by the request handler.
+4. Raft transport is not integrated: the experimental Raft code uses a 5-byte message header, while application RPC uses a 9-byte header. Accepted application connections are not dispatched to "HandleRaftConnection".
+5. Incomplete AppendEntries: the current handler does not validate or append log entries; it updates node state and sends a response.
+6. No production security: authentication, authorization, transport encryption, resource limits, and operational hardening are not implemented.
+7. No stable compatibility contract: the binary protocol may change as the project evolves.
+8. No observability implementation: health checks, metrics endpoints, and storage statistics remain planned MVP capabilities.
+
+Multi-node cluster and failover behavior should not be presented as supported until automated integration tests demonstrate it.
+
+---
+
+Non-goals
+
+The current prototype is not intended to:
+
+- Replace Redis, etcd, FoundationDB, or another production database.
+- Provide production-grade durability or availability.
+- Offer a stable client SDK or wire protocol.
+- Claim linearizability or fault tolerance before those properties are tested.
+- Compete with mature database systems without a specific technical advantage.
 
 Contributing
 
-Issues and focused contributions are welcome. Before implementing a major feature, open an issue describing:
+Issues and focused contributions are welcome.
+
+Before implementing a major feature, open an issue describing:
 
 - The problem being addressed.
 - The expected behavior.
 - The design and relevant trade-offs.
 - The tests that will demonstrate correctness.
 
-Keep pull requests small and include tests for protocol, storage, concurrency, observability, and failure-handling changes.
+Keep pull requests small and include tests for protocol, storage, concurrency, observability, and failure handling.
 
 License
 
@@ -425,4 +493,6 @@ Kauan Oliveira — "@kauand3v" (https://github.com/kauand3v)
 
 ---
 
-TitanDB is an educational systems engineering project under active development. Its documentation distinguishes the current implementation from planned capabilities. Features are only promoted to implemented status after they exist in the source code and are covered by reproducible tests.
+<p align="center">
+  <sub>TitanDB is an educational systems engineering project under active development. Its documentation distinguishes implemented functionality from planned capabilities. Features are considered implemented only when they exist in the source code and are covered by reproducible tests.</sub>
+</p>
