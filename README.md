@@ -1,8 +1,21 @@
 TitanDB
 
-An experimental key-value storage system in Go, exploring TCP networking, binary protocols, concurrency, storage engineering, observability, and distributed consensus.
-
-«[!WARNING] Experimental project — not production-ready. TitanDB currently provides a TCP-based key-value request path backed by an in-memory map. The Raft package remains a prototype: replicated log entries, majority-based commits, durable storage, and end-to-end multi-node consensus are not implemented. Basic observability is a target of the single-node MVP, not an implemented feature. Do not use TitanDB to store production or valuable data.»
+<p align="center">
+  <strong>An experimental key-value storage system built with Go.</strong>
+  <br>
+  Exploring TCP networking, binary protocols, concurrency, storage engineering, observability, and distributed consensus.
+</p><p align="center">
+  <img src="https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go 1.22+">
+  <img src="https://img.shields.io/badge/Status-Experimental-orange?style=for-the-badge" alt="Experimental">
+  <img src="https://img.shields.io/badge/Storage-Key--Value-blue?style=for-the-badge" alt="Key-Value Storage">
+  <img src="https://img.shields.io/badge/Platform-Cross--Platform-lightgrey?style=for-the-badge" alt="Cross-platform">
+</p><p align="center">
+  <img src="https://img.shields.io/badge/Networking-TCP-informational?style=flat-square" alt="TCP">
+  <img src="https://img.shields.io/badge/Protocol-Binary-blueviolet?style=flat-square" alt="Binary Protocol">
+  <img src="https://img.shields.io/badge/Concurrency-RWMutex-success?style=flat-square" alt="Concurrency">
+  <img src="https://img.shields.io/badge/Consensus-Raft-orange?style=flat-square" alt="Raft">
+  <img src="https://img.shields.io/badge/Observability-Planned-yellow?style=flat-square" alt="Observability planned">
+</p>«[!WARNING] Experimental project — not production-ready. TitanDB currently provides a TCP-based key-value request path backed by an in-memory map. The Raft package remains a prototype: replicated log entries, majority-based commits, durable storage, and end-to-end multi-node consensus are not implemented. Basic observability is a target of the single-node MVP, not an implemented feature. Do not use TitanDB to store production or valuable data.»
 
 Overview
 
