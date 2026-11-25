@@ -1,328 +1,123 @@
 TitanDB
 
-An experimental key-value storage prototype in Go, exploring TCP networking, binary protocols, concurrency, storage engineering, and distributed consensus.
+An experimental distributed key-value storage system in Go, exploring TCP networking, binary protocols, concurrency, storage engineering, observability, and distributed consensus.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Go-1.22%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.22+"/>
-  <img src="https://img.shields.io/badge/Status-Experimental-orange" alt="Experimental"/>
-  <img src="https://img.shields.io/badge/Architecture-Client--Server-blue" alt="Client Server"/>
-  <img src="https://img.shields.io/badge/Storage-In--Memory-lightgrey" alt="In Memory"/>
-</p>«[!WARNING]
-Experimental project — not production-ready.
+"Go" (https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)
+"TCP" (https://img.shields.io/badge/Networking-TCP-2563EB)
+"Protocol" (https://img.shields.io/badge/Protocol-Custom%20Binary-7C3AED)
+"Status" (https://img.shields.io/badge/Status-Experimental-orange)
 
-TitanDB currently provides a TCP-based application request path backed by an in-memory key-value store. Its Raft implementation remains an early prototype. Log replication, majority-based commits, durable storage, crash recovery, and end-to-end distributed consensus are not implemented.
-
-Do not use TitanDB to store production or valuable data.»
+«[!WARNING]
+Experimental project — not production-ready. TitanDB currently provides a TCP-based key-value request path backed by an in-memory map. Its Raft implementation is still a prototype: replicated log entries, majority-based commits, durable storage, and end-to-end multi-node consensus are not implemented.»
 
 ---
 
-Table of Contents
+The Problem
 
-- "Overview" (#overview)
-- "Current Features" (#current-features)
-- "Project Status" (#project-status)
-- "Architecture" (#architecture)
-- "Core Components" (#core-components)
-- "Binary Protocol" (#binary-protocol)
-- "Requirements" (#requirements)
-- "Installation" (#installation)
-- "Quick Start" (#quick-start)
-- "Repository Structure" (#repository-structure)
-- "Storage Model and Data Lifecycle" (#storage-model-and-data-lifecycle)
-- "Raft and Distributed Systems" (#raft-and-distributed-systems)
-- "Testing and Quality" (#testing-and-quality)
-- "Limitations and Security" (#limitations-and-security)
-- "Development Roadmap" (#development-roadmap)
-- "Non-Goals" (#non-goals)
-- "Contributing" (#contributing)
-- "License" (#license)
-- "Author" (#author)
+Building a storage system is much more than implementing "PUT" and "GET" operations:
 
----
+- Network communication is complex. Applications need reliable request framing, message identification, and a protocol for exchanging data over TCP.
+- Concurrent access introduces risks. Multiple clients accessing shared data require synchronization to prevent race conditions and inconsistent state.
+- Data durability is essential. In-memory storage is fast, but data disappears when the process terminates.
+- Distributed consistency is difficult. Multiple nodes need a coordination mechanism to agree on which operations are committed.
+- Operational visibility matters. Logging, observability, and performance measurements are necessary to understand system behavior.
 
-Overview
+The Solution
 
-TitanDB is an experimental storage-engine project written in Go.
+TitanDB is an experimental project designed to explore the internal components of a networked key-value storage system:
 
-Its primary goal is to explore the engineering concepts behind storage systems and distributed infrastructure by implementing fundamental components directly.
-
-Rather than relying on an existing database engine or high-level networking framework, TitanDB explores how a small storage service can be assembled from lower-level primitives.
-
-The project focuses on:
-
-- TCP networking and connection handling.
-- Custom binary protocol design.
-- Client-server communication.
-- Concurrent programming in Go.
-- In-memory key-value storage.
-- Storage persistence and recovery concepts.
-- Raft consensus and leader election.
-- Replication and distributed state management.
-
-TitanDB is primarily a systems-engineering and learning project. Its architecture is being developed incrementally, with correctness and implementation maturity taking priority over production-oriented claims.
-
-Current Features
-
-Implemented application functionality
-
-- TCP-based server.
-- Custom binary request framing.
-- Command-line client.
-- "PUT", "GET", and "DELETE" operations.
-- In-memory key-value storage.
-- Concurrent access protection using "sync.RWMutex".
-- Basic request processing through the RPC package.
-
-Experimental functionality
-
-- "3SUM" command for finding unique integer triplets whose sum is zero.
-- Early Raft node implementation.
-- Node roles and election-related state.
-- Election timers.
-- RequestVote-related handling.
-- Heartbeat-related functionality.
-
-These experimental components should not be interpreted as a complete distributed consensus implementation.
-
-Project Status
-
-The following table distinguishes working application functionality from incomplete infrastructure components.
-
-Component| Status| Description
-TCP server| Implemented| Accepts client connections.
-Binary request framing| Implemented| Custom application request format.
-CLI client| Implemented| Sends commands to the server.
-PUT / GET / DELETE| Implemented| Operate against local memory.
-In-memory storage| Implemented| Go map protected by "sync.RWMutex".
-3SUM| Experimental| Demonstration operation.
-Raft node structure| Experimental| Early node and role implementation.
-Leader election| In Progress| Election-related timers and vote handling.
-Heartbeat handling| Experimental| Early heartbeat-related functionality.
-Raft transport integration| Not Implemented| Normal server connections do not dispatch Raft messages.
-AppendEntries replication| Not Implemented| No actual replicated log implementation.
-Majority-based commit| Not Implemented| Writes are not committed through a cluster majority.
-Persistent storage| Not Implemented| Data exists only in memory.
-Write-ahead log| Not Implemented| No durable log.
-Snapshots and recovery| Not Implemented| No persistent recovery mechanism.
-Production security| Not Implemented| No authentication or transport encryption.
-Multi-node fault tolerance| Not Verified| No demonstrated end-to-end fault-tolerance guarantees.
-
-Current maturity: single-node TCP storage prototype with an experimental, disconnected Raft implementation.
-
----
+- Custom TCP communication: a binary request protocol for communication between clients and the server.
+- Key-value operations: local "PUT", "GET", and "DELETE" operations backed by an in-memory storage engine.
+- Concurrent access: synchronized access to shared data using Go's "sync.RWMutex".
+- Command-line client: a CLI for sending requests to the TitanDB server.
+- Experimental query operation: a "3SUM" operation that searches stored integer values for triplets whose sum is zero.
+- Raft prototype: an early implementation exploring node roles, election timers, and vote requests as a foundation for distributed consensus.
 
 Architecture
 
-Current application request path
+TitanDB currently uses a simple client-server architecture. The Raft package is separate from the application request path and is not yet responsible for committing key-value operations.
 
-The current application architecture is a straightforward client-server storage service.
+flowchart TB
+    Client["CLI Client"]
 
-flowchart TD
-    A["CLI Client"] -->|"TCP connection"| B["TCP Server"]
-    B --> C["TitanRPC"]
-    C --> D["Request Decoding"]
-    D --> E["Command Processing"]
-    E --> F["In-Memory Key-Value Store"]
-    F --> G["Go map + sync.RWMutex"]
+    subgraph Server["TitanDB Server"]
+        TCP["TCP Connection"]
+        RPC["Binary RPC Protocol"]
+        Handler["Request Handler"]
+        KV["In-Memory Key-Value Store"]
+        Mutex["sync.RWMutex"]
+    end
 
-The application request path currently handles client operations independently of Raft.
+    subgraph Experimental["Experimental Components"]
+        Raft["Raft Prototype"]
+        Roles["Node Roles"]
+        Election["Election Timers"]
+        Vote["RequestVote Handling"]
+    end
 
-A typical write follows this path:
+    Client -->|"TCP Requests"| TCP
+    TCP --> RPC
+    RPC --> Handler
+    Handler --> KV
+    KV --> Mutex
 
-1. The client constructs a binary request.
-2. The request is transmitted through TCP.
-3. The server accepts the connection.
-4. The RPC layer decodes the request.
-5. The corresponding operation is executed against the local key-value store.
+    Raft --> Roles
+    Raft --> Election
+    Raft --> Vote
 
-Experimental Raft subsystem
+Request flow: the CLI client establishes a TCP connection with the server and sends a binary-framed request. The RPC layer decodes the message, and the request handler executes the corresponding operation against the local in-memory key-value store.
 
-The repository also contains an experimental Raft package.
+Important: key-value writes are currently applied directly to the local store. They are not replicated through Raft, and they are not committed through a majority of nodes.
 
-It is separate from the normal application request path.
+Current Features
 
-flowchart TD
-    A["Experimental Raft Package"] --> B["Node State"]
-    B --> C["Node Roles"]
-    B --> D["Election Timers"]
-    B --> E["RequestVote Handling"]
-    B --> F["Heartbeat-Related Code"]
-    F --> G["AppendEntries Handler"]
-    G --> H["Incomplete Replication Logic"]
+«Keep this list limited to functionality documented in the current implementation. Experimental components are explicitly identified.»
 
-    I["Application RPC Server"] -.->|"Not integrated"| A
+- TCP-based client-server communication
+- Custom binary request framing
+- Message identification through request IDs
+- CLI client for interacting with the server
+- Local "PUT", "GET", and "DELETE" operations
+- In-memory key-value storage
+- Concurrent access protection using "sync.RWMutex"
+- Experimental "3SUM" operation over stored integer values
+- Initial Raft node structure and role definitions
+- Election timer and "RequestVote" prototype
+- Logging package for application observability
 
-The Raft implementation is not currently responsible for committing application writes.
+Tech Stack
 
-In particular:
+Layer| Technology| Purpose
+Core language| Go 1.22+| System implementation and concurrency
+Networking| TCP| Client-server communication
+Application protocol| Custom binary protocol| Structured request framing
+Storage engine| Go map| In-memory key-value storage
+Synchronization| "sync.RWMutex"| Concurrent access protection
+Distributed consensus| Raft prototype| Exploration of leader election and consensus
+CLI| Go| Client-side request execution
+Logging| Custom logger package| Application logging
 
-- Application writes are applied directly to local memory.
-- The RPC request handler does not use Raft's "SubmitCommand" method.
-- The TCP server does not dispatch accepted application connections to "HandleRaftConnection".
-- Application RPC and experimental Raft traffic currently use different message-header layouts.
-- "AppendEntries" does not implement actual log replication.
+Quick Start
 
-Consequently, TitanDB does not currently provide distributed write consistency, replicated storage, or automatic failover guarantees.
+Prerequisites: Go 1.22+ and Git.
 
-Core Components
-
-The Go implementation is organized around the following packages.
-
-Package| Responsibility
-"cmd/server"| Starts the TitanDB server and supporting components.
-"cmd/client"| Provides the command-line client for communicating with the server.
-"internal/rpc"| Handles TCP connections and application request encoding and decoding.
-"internal/kv"| Implements the in-memory key-value store.
-"internal/raft"| Contains experimental Raft node, election, and heartbeat-related code.
-"pkg/logger"| Provides project logging utilities.
-
-Application components
-
-Server ("cmd/server")
-
-Responsible for starting the server node and configuring its network-related parameters.
-
-Client ("cmd/client")
-
-Provides a command-line interface for sending storage commands to a running server.
-
-RPC ("internal/rpc")
-
-Handles application-level communication through TCP and the custom binary request format.
-
-Key-value storage ("internal/kv")
-
-Provides the current in-memory storage implementation, using a Go map and read/write synchronization.
-
-Experimental components
-
-Raft ("internal/raft")
-
-Contains the early implementation of distributed consensus concepts, including node roles and election-related functionality.
-
-It is not yet integrated into the application write path.
-
-Logger ("pkg/logger")
-
-Provides logging utilities used by the project.
-
----
-
-Binary Protocol
-
-TitanDB uses a custom binary application protocol over TCP.
-
-The current application request header has a fixed size of 9 bytes.
-
-Request header
-
-Field| Size| Description
-Payload Length| 4 bytes| Request payload length.
-Message ID| 4 bytes| Request identifier.
-Command| 1 byte| Operation identifier.
-Payload| Variable| Command-specific data.
-
-All multi-byte integer fields use big-endian byte order.
-
-Command identifiers
-
-Code| Command| Payload
-"1"| PUT| Key length, key, value length, value.
-"2"| GET| Key length and key.
-"3"| DELETE| Key length and key.
-"4"| 3SUM| No command-specific payload.
-
-Payload structure
-
-PUT
-
-+------------+-----+--------------+-------+
-| Key Length | Key | Value Length | Value |
-+------------+-----+--------------+-------+
-
-GET
-
-+------------+-----+
-| Key Length | Key |
-+------------+-----+
-
-DELETE
-
-+------------+-----+
-| Key Length | Key |
-+------------+-----+
-
-3SUM
-
-The operation does not require additional command-specific payload.
-
-Protocol limitations
-
-The current protocol is experimental.
-
-- No stable public wire-protocol contract exists.
-- Compatibility between future protocol versions is not guaranteed.
-- The application protocol and experimental Raft transport are not unified.
-- The Raft implementation currently uses a separate 5-byte message header.
-- A complete protocol-versioning and compatibility strategy has not been implemented.
-
-The format described here documents the current application request layout, not a finalized protocol specification.
-
----
-
-Requirements
-
-- Go 1.22 or later.
-- Git.
-- A terminal with Go available in the system PATH.
-
-Important: The Go module is currently located inside the "titan-db/" subdirectory.
-
-Run Go commands from that directory rather than the repository root.
-
-Installation
-
-Clone the repository:
+1. Clone the repository
 
 git clone https://github.com/kauand3v/titan-db.git
 cd titan-db/titan-db
 
-Verify the Go installation:
-
-go version
-
-Download module dependencies:
-
-go mod download
-
-Quick Start
-
-The following example demonstrates the current single-node TCP application path.
-
-It does not demonstrate distributed writes, replicated state, or Raft consensus.
-
-1. Start the server
-
-Open a terminal inside the Go module directory:
+2. Start the TitanDB server
 
 go run ./cmd/server/main.go \
   --id=1 \
   --address=127.0.0.1:8001 \
   --cluster=1@127.0.0.1:8001
 
-Keep the server running.
+The server will start listening on the configured TCP address.
 
-The example uses:
+3. Send a PUT request
 
-- Node ID: "1"
-- Server address: "127.0.0.1:8001"
-- Cluster configuration: "1@127.0.0.1:8001"
-
-The cluster argument is configuration input; it does not mean that replicated consensus is operational.
-
-2. Insert a value
-
-Open a second terminal in the same Go module directory.
+Open another terminal from the module directory:
 
 go run ./cmd/client/main.go \
   --server=127.0.0.1:8001 \
@@ -330,207 +125,115 @@ go run ./cmd/client/main.go \
   --key=greeting \
   --val=hello
 
-This sends a PUT request to the running server.
-
-3. Read a value
+4. Retrieve a value
 
 go run ./cmd/client/main.go \
   --server=127.0.0.1:8001 \
   --cmd=GET \
   --key=greeting
 
-The request reads the value from the server's in-memory store.
-
-4. Delete a value
+5. Delete a value
 
 go run ./cmd/client/main.go \
   --server=127.0.0.1:8001 \
   --cmd=DELETE \
   --key=greeting
 
-This sends a DELETE request to the server.
-
-5. Run the experimental 3SUM operation
+6. Run the experimental 3SUM operation
 
 go run ./cmd/client/main.go \
   --server=127.0.0.1:8001 \
   --cmd=3SUM
 
-The experimental operation reads values from the in-memory store, parses integer values, and searches for unique triplets whose sum is zero.
+«[!NOTE]
+The "--cluster" argument does not mean that distributed consensus is operational. The current key-value request path does not use Raft replication.»
 
-It is a demonstration feature rather than part of the core key-value storage interface.
+Binary Protocol
 
----
+TitanDB uses a custom binary protocol over TCP.
 
-Repository Structure
+Each application request begins with a fixed-size header of 9 bytes:
 
-Current repository layout:
+Field| Size| Description
+Payload length| 4 bytes| Request payload length field
+Message ID| 4 bytes| Request identifier
+Command| 1 byte| Operation identifier
+Payload| Variable| Command-specific data
+
+All multi-byte integer fields use big-endian byte order.
+
+Supported commands
+
+Command| ID| Description
+"PUT"| "1"| Stores a key-value pair
+"GET"| "2"| Retrieves a value by key
+"DELETE"| "3"| Removes a key-value pair
+"3SUM"| "4"| Searches stored integer values for zero-sum triplets
+
+The protocol is experimental and is not intended to be a stable or externally supported wire-protocol specification.
+
+Storage and Consensus
+
+Key-value storage
+
+The current storage implementation uses an in-memory Go map protected by "sync.RWMutex".
+
+This provides synchronized access to the local store, but it does not provide persistence.
+
+- Data is held in process memory.
+- Writes are local to the server instance.
+- Restarting the process loses stored data.
+- There is no write-ahead log or snapshot-based recovery.
+
+Raft implementation
+
+The "internal/raft" package is an experimental foundation for future distributed consensus functionality.
+
+The current prototype includes:
+
+- Node role definitions.
+- Election timer-related logic.
+- Initial "RequestVote" handling.
+- Heartbeat-related code.
+
+The following capabilities are not implemented as a complete, operational consensus system:
+
+- Replicated log entries.
+- Functional "AppendEntries" log replication.
+- Majority-based commit decisions.
+- Raft-backed key-value writes.
+- Durable Raft state and log storage.
+- Snapshotting and crash recovery.
+- End-to-end multi-node consensus.
+
+Project Structure
 
 titan-db/
 ├── .vscode/
 ├── ruby/
 ├── titan-db/
 │   ├── cmd/
-│   │   ├── client/
-│   │   └── server/
+│   │   ├── client/       # CLI client
+│   │   └── server/       # TCP server
 │   ├── internal/
-│   │   ├── kv/
-│   │   ├── raft/
-│   │   └── rpc/
+│   │   ├── kv/           # Key-value storage
+│   │   ├── raft/         # Experimental Raft implementation
+│   │   └── rpc/          # Binary RPC protocol
 │   ├── pkg/
-│   │   └── logger/
+│   │   └── logger/       # Logging utilities
 │   └── go.mod
 ├── .gitignore
 └── README.md
 
-Directory responsibilities
+Testing and Development
 
-Directory| Purpose
-".vscode/"| Editor configuration.
-"ruby/"| Experimental Ruby client material.
-"titan-db/"| Current Go module.
-"cmd/"| Executable applications.
-"internal/"| Internal implementation packages.
-"pkg/"| Reusable project utilities.
-
-The repository currently keeps the Go module in a nested directory. Moving it to the repository root is a potential future structural improvement.
-
----
-
-Storage Model and Data Lifecycle
-
-TitanDB currently uses an in-memory key-value storage model.
-
-The implementation relies on:
-
-- A Go map for storing key-value pairs.
-- "sync.RWMutex" for concurrent access protection.
-- Direct local application of write operations.
-
-Concurrency
-
-The read/write mutex allows synchronized access to the in-memory map.
-
-It provides local concurrency protection but does not establish distributed consistency or durability.
-
-Data lifecycle
-
-The current storage lifecycle is:
-
-flowchart TD
-    A["Client PUT Request"] --> B["RPC Handler"]
-    B --> C["Local In-Memory Store"]
-    C --> D["Value Available While Process Runs"]
-    D --> E["Server Process Terminates"]
-    E --> F["In-Memory Data Lost"]
-
-Persistence status
-
-Persistent storage is not implemented.
-
-Currently:
-
-- Data is stored only in process memory.
-- There is no write-ahead log.
-- There are no durable snapshots.
-- There is no recovery mechanism.
-- Restarting the server loses previously stored values.
-- The storage "Close" operation does not provide persistence.
-
-A future persistent storage implementation will require a defined durability model, recovery behavior, and appropriate crash-consistency tests.
-
----
-
-Raft and Distributed Systems
-
-TitanDB includes an experimental Raft package intended to explore distributed consensus.
-
-Raft is a consensus algorithm that coordinates replicated logs across multiple nodes.
-
-A complete implementation requires substantially more than leader election.
-
-Current implementation state
-
-The existing Raft package contains early infrastructure for:
-
-- Node roles.
-- Election-related state.
-- Election timers.
-- RequestVote-related handling.
-- Heartbeat-related functionality.
-- Early AppendEntries handling.
-
-These components are not sufficient to establish a functioning consensus system.
-
-Missing consensus functionality
-
-The following capabilities remain unimplemented:
-
-Capability| Current state
-Complete leader election correctness| Not verified
-Term and log-freshness validation| Incomplete / not verified
-Raft transport integration| Not implemented
-Replicated log entries| Not implemented
-Previous-log consistency validation| Not implemented
-Majority-based commit| Not implemented
-State machine application of committed entries| Not implemented
-Durable term and vote state| Not implemented
-Write-ahead log| Not implemented
-Snapshotting| Not implemented
-Crash recovery| Not implemented
-Multi-node failure validation| Not verified
-
-Why the current implementation is not consensus
-
-There are several architectural gaps.
-
-1. Separate transport paths
-
-The application RPC server uses a 9-byte request header, while the experimental Raft implementation uses a separate 5-byte message header.
-
-The normal accepted-connection handler does not dispatch connections to "HandleRaftConnection".
-
-2. Application writes bypass Raft
-
-The current application request handler applies writes directly to the local key-value store.
-
-It does not submit writes through the Raft command path or wait for a majority commit.
-
-3. AppendEntries is incomplete
-
-The existing handler does not implement actual log-entry validation and replication. Updating node state and returning a response is not equivalent to replicating a Raft log.
-
-4. No durable consensus state
-
-There is no demonstrated persistent storage for Raft terms, votes, logs, or committed application data.
-
-5. No demonstrated recovery guarantees
-
-There are no verified multi-node failure scenarios establishing recovery, consistency, or fault tolerance.
-
-Development direction
-
-The intended direction is to evolve the experimental subsystem into a properly integrated consensus layer.
-
-That requires transport integration, correct Raft protocol behavior, replicated log management, majority-based commitment, durable state, and multi-node testing.
-
-Until those capabilities exist and are validated, TitanDB must be treated as a single-node storage prototype with experimental distributed-systems code.
-
----
-
-Testing and Quality
-
-Testing distributed infrastructure requires more than confirming that the project compiles.
-
-The following Go commands are useful validation checks.
-
-Run them from the Go module directory.
+From the Go module directory:
 
 Run tests
 
 go test ./...
 
-Run the race detector
+Run tests with the race detector
 
 go test -race ./...
 
@@ -538,217 +241,50 @@ Run static analysis
 
 go vet ./...
 
-Important testing considerations
+These commands are development checks, not evidence of complete distributed-system correctness. In particular, Raft behavior requires dedicated multi-node tests before it can be considered reliable.
 
-These commands are validation procedures, not evidence of existing test coverage.
+Known Limitations
 
-A successful compilation does not establish:
+TitanDB is an engineering and learning project. Its current implementation has important limitations:
 
-- Correct TCP behavior under concurrent connections.
-- Correct binary protocol handling.
-- Absence of all concurrency bugs.
-- Correct Raft elections.
-- Correct log replication.
-- Majority-based commitment.
-- Linearizability.
-- Crash recovery.
-- Fault tolerance.
+- No persistent key-value storage.
+- No write-ahead log or crash recovery.
+- No functional Raft log replication.
+- No majority-based commit mechanism.
+- Key-value requests bypass the Raft package.
+- No complete multi-node consensus workflow.
+- The application RPC and experimental Raft transport use different message framing.
+- No production-grade authentication, authorization, or TLS.
+- No comprehensive resource limits or production hardening.
 
-Distributed-systems correctness requires dedicated multi-process integration tests.
+Roadmap
 
-In particular, Raft testing should include leader elections, competing candidates, network failures, stale terms, log inconsistencies, leader replacement, and recovery after process termination.
+The roadmap focuses on evolving TitanDB from an experimental TCP key-value prototype into a more complete storage system.
 
-No benchmark or test-coverage figures are claimed by this project.
-
----
-
-Limitations and Security
-
-TitanDB is an experimental implementation and currently has significant limitations.
-
-Storage
-
-- In-memory-only storage.
-- No persistent data files.
-- No write-ahead log.
-- No snapshots.
-- No crash recovery.
-- No durable write guarantees.
-
-Networking
-
-- Experimental binary protocol.
-- No stable compatibility contract.
-- No demonstrated protocol version negotiation.
-- No verified production-grade connection management.
-- No demonstrated resource and connection limits.
-
-Distributed systems
-
-- Raft is not integrated into application writes.
-- No actual replicated log.
-- No majority-based commit.
-- No verified multi-node failover.
-- No demonstrated distributed consistency guarantees.
-
-Security
-
-The current implementation does not provide verified production security mechanisms, including:
-
-- Client authentication.
-- Authorization.
-- Transport encryption.
-- Secure credential management.
-- Production-grade resource isolation.
-- Operational security hardening.
-
-TitanDB should only be exposed in controlled development and testing environments.
-
----
-
-Development Roadmap
-
-The roadmap prioritizes correctness, reliability, and architectural foundations before performance optimization.
-
-1. Repository and module structure
-
-- [ ] Move the Go module to the repository root.
-- [ ] Update the module path to "github.com/kauand3v/titan-db".
-- [ ] Organize optional language clients under a dedicated directory.
-- [ ] Standardize project configuration and development instructions.
-
-2. Testing foundations
-
-- [ ] Add unit tests for key-value operations.
-- [ ] Add binary protocol encoding and decoding tests.
-- [ ] Add TCP server integration tests.
-- [ ] Add client-server communication tests.
-- [ ] Add concurrency and race-condition tests.
-
-3. Protocol correctness
-
-- [ ] Define a consistent message framing strategy.
-- [ ] Validate payload lengths and malformed requests.
-- [ ] Define protocol error handling.
-- [ ] Introduce protocol versioning.
-- [ ] Document request and response behavior.
-
-4. TCP reliability
-
-- [ ] Improve connection lifecycle management.
-- [ ] Add configurable timeouts.
-- [ ] Handle partial reads and writes correctly.
-- [ ] Introduce resource and connection limits.
-- [ ] Add network failure tests.
-
-5. Raft transport integration
-
-- [ ] Integrate Raft message handling with the networking layer.
-- [ ] Define explicit transport handling for Raft messages.
-- [ ] Establish a consistent node communication model.
-- [ ] Test communication between multiple server processes.
-
-6. Consensus correctness
-
-- [ ] Complete RequestVote term validation.
-- [ ] Implement log-freshness checks.
-- [ ] Implement correct AppendEntries handling.
-- [ ] Add previous-log consistency validation.
-- [ ] Implement actual log replication.
-- [ ] Implement majority-based commit.
-- [ ] Apply committed entries to the state machine.
-
-7. Persistence and recovery
-
-- [ ] Implement a write-ahead log.
-- [ ] Persist Raft term and vote state.
-- [ ] Implement durable log storage.
-- [ ] Implement snapshots.
-- [ ] Implement crash recovery.
-- [ ] Validate recovery after unexpected termination.
-
-8. Distributed validation
-
-- [ ] Add multi-node integration tests.
-- [ ] Test leader election.
-- [ ] Test leader failure and replacement.
-- [ ] Test network partitions.
-- [ ] Test node restarts.
-- [ ] Verify replicated state consistency.
-
-9. Performance and observability
-
-- [ ] Add storage benchmarks.
-- [ ] Benchmark request throughput and latency.
-- [ ] Measure memory and resource usage.
-- [ ] Improve structured logging.
-- [ ] Add operational metrics.
-
-10. Security and hardening
-
-- [ ] Implement client authentication.
-- [ ] Introduce authorization policies.
-- [ ] Add transport encryption.
-- [ ] Define secure configuration practices.
-- [ ] Improve operational safeguards.
-- [ ] Perform security-oriented testing.
-
----
-
-Non-Goals
-
-In its current state, TitanDB does not aim to:
-
-- Replace Redis, etcd, or established database systems.
-- Provide production-grade availability.
-- Guarantee durable writes.
-- Provide a stable public protocol or SDK.
-- Guarantee linearizability.
-- Guarantee fault tolerance.
-- Serve as a production distributed database.
-
-The project's current objective is to explore and implement the engineering foundations required by storage systems and distributed infrastructure.
-
----
+- [ ] Testing foundation: unit tests for storage, RPC framing, and server behavior.
+- [ ] Protocol engineering: document and standardize message framing, validation, and error handling.
+- [ ] Storage persistence: implement a write-ahead log and durable storage.
+- [ ] Raft integration: connect the application write path to the consensus layer.
+- [ ] Log replication: implement functional "AppendEntries" and replicated log management.
+- [ ] Consensus and commits: implement majority-based commit decisions and state machine application.
+- [ ] Crash recovery: add snapshots, log replay, and recovery mechanisms.
+- [ ] Multi-node testing: validate elections, replication, failure handling, and recovery across multiple nodes.
+- [ ] Observability: improve structured logging, metrics, and operational diagnostics.
+- [ ] Performance: add benchmarks for storage operations, protocol overhead, and concurrent workloads.
+- [ ] Security and hardening: introduce connection limits, request validation, and transport security.
 
 Contributing
 
-Contributions, bug reports, and technical discussions are welcome.
+Issues, suggestions, and pull requests are welcome.
 
-Before implementing a significant architectural change, consider opening an issue describing:
-
-1. The problem being addressed.
-2. The expected behavior.
-3. The proposed design.
-4. Relevant technical trade-offs.
-5. The tests required to validate the implementation.
-
-Pull requests
-
-Keep pull requests focused and include appropriate tests whenever possible.
-
-Changes involving networking, protocol encoding, storage, concurrency, or distributed-systems behavior should include reproducible validation.
-
-Please avoid introducing undocumented functionality or making claims that cannot be demonstrated by the implementation.
-
----
+For substantial changes, open an issue first to discuss the proposed implementation and its impact on the architecture.
 
 License
 
-No "LICENSE" file is currently present in the repository.
-
-Until a license is declared, no permission to reuse, modify, or redistribute the project should be assumed.
+No license has currently been declared for this project. Until a license is added, reuse, modification, and redistribution permissions should not be assumed.
 
 ---
 
-Author
+Developed by "Kauan Oliveira" (https://github.com/kauand3v)
 
-Kauan Oliveira
-
-GitHub: "@kauand3v" (https://github.com/kauand3v)
-
----
-
-<p align="center">
-  <sub>TitanDB — An experimental journey into storage systems and distributed systems engineering.</sub>
-</p>
+"GitHub Repository" (https://github.com/kauand3v/titan-db)
