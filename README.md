@@ -2,8 +2,7 @@ TitanDB
 
 An experimental key-value storage system in Go, exploring TCP networking, binary protocols, concurrency, storage engineering, observability, and distributed consensus.
 
-«[!WARNING]
-Experimental project — not production-ready. TitanDB currently provides a TCP-based key-value request path backed by an in-memory map. The Raft package remains a prototype: replicated log entries, majority-based commits, durable storage, and end-to-end multi-node consensus are not implemented. Basic observability is part of the planned single-node MVP, but must not be considered implemented until available and tested. Do not use TitanDB to store production or valuable data.»
+«[!WARNING] Experimental project — not production-ready. TitanDB currently provides a TCP-based key-value request path backed by an in-memory map. The Raft package remains a prototype: replicated log entries, majority-based commits, durable storage, and end-to-end multi-node consensus are not implemented. Basic observability is a target of the single-node MVP, not an implemented feature. Do not use TitanDB to store production or valuable data.»
 
 Overview
 
@@ -18,7 +17,7 @@ The current Go implementation includes:
 - An in-memory key-value store protected by "sync.RWMutex".
 - An early Raft implementation scaffold containing node roles, election timers, vote-request handling, and heartbeat-related code.
 
-The planned single-node MVP will additionally introduce basic observability, structured logging, health checks, request metrics, and automated testing.
+The planned single-node MVP will extend the current implementation with basic observability, structured logging, health checks, request metrics, storage statistics, and automated testing.
 
 The project is being developed incrementally. Its current state should be understood as an experimental prototype, not as a complete distributed database.
 
@@ -69,7 +68,7 @@ The repository also contains an experimental "internal/raft" package. It is not 
 
 Planned MVP architecture
 
-The single-node MVP will introduce an observability layer alongside the existing request path.
+The single-node MVP will introduce an observability layer alongside the existing request path. A separate monitoring interface will expose local server health and operational metrics without changing the application's binary TCP protocol.
 
 ┌──────────────────┐
 │   CLI Client     │
@@ -84,17 +83,23 @@ The single-node MVP will introduce an observability layer alongside the existing
 ┌──────────────────────────┐
 │ In-memory Key-Value Store│
 └──────────────────────────┘
-
+         │
+         ▼
 ┌──────────────────────────┐
-│     Observability        │
+│  Observability Collector │
+└────────┬─────────────────┘
+         │
+         ▼
+┌──────────────────────────┐
+│   Monitoring Interface   │
 │                          │
 │  Health Checks           │
 │  Request Metrics         │
 │  Storage Statistics      │
-│  Structured Logging      │
+│  Operational Logs        │
 └──────────────────────────┘
 
-The observability layer is planned to expose operational information without mixing HTTP monitoring endpoints with the application's binary TCP protocol.
+The observability layer is intended to collect information from the server and storage components. Its monitoring interface will use a separate HTTP listener, keeping monitoring traffic independent from the application's binary TCP protocol.
 
 Main packages
 
@@ -142,7 +147,9 @@ Observability
 
 Observability is a planned component of the single-node MVP.
 
-The objective is to make TitanDB easier to inspect, debug, and understand while it is running, providing visibility into its request handling, storage operations, and server health.
+The objective is to make TitanDB easier to inspect, debug, and understand while it is running, providing visibility into request handling, storage operations, and server health.
+
+The initial implementation will prioritize a small set of operational signals rather than a complex monitoring stack.
 
 Planned MVP capabilities
 
@@ -159,13 +166,13 @@ Metrics endpoint| Expose metrics through a separate monitoring interface.
 
 Planned monitoring endpoints
 
-The MVP may expose a separate HTTP listener for monitoring:
+The MVP is expected to expose a separate HTTP listener for monitoring:
 
 Endpoint| Purpose
 "GET /health"| Local server health information.
-"GET /metrics"| Operational metrics and statistics.
+"GET /metrics"| Operational metrics and storage statistics.
 
-These endpoints are planned, not currently available.
+These endpoints are planned and are not currently available.
 
 The health endpoint must distinguish between local server availability and distributed consensus health. Until Raft is fully integrated and validated, TitanDB must not report a functioning distributed cluster merely because its local TCP server is running.
 
@@ -300,6 +307,7 @@ Phase 2 — Single-Node MVP and Observability
 - [ ] Expose basic storage statistics.
 - [ ] Improve structured logging.
 - [ ] Add a separate monitoring listener for health and metrics endpoints.
+- [ ] Add tests for metrics collection and health reporting.
 - [ ] Document the MVP architecture and reproducible demonstrations.
 
 MVP milestone: a functional single-node TCP key-value service with automated tests, structured logging, basic health checks, and operational metrics.
